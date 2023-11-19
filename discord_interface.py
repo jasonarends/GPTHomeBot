@@ -9,7 +9,7 @@ class DiscordInterface:
     Handles interactions with Discord.
     """
 
-    def __init__(self):
+    def __init__(self, assistant):
         """
         Initializes the Discord bot.
         """
@@ -25,6 +25,7 @@ class DiscordInterface:
         intents.dm_messages = True
 
         self.client = discord.Client(intents=intents)
+        self.assistant = assistant
 
     async def on_ready(self):
         """
@@ -46,16 +47,19 @@ class DiscordInterface:
 
         # Improved mention detection
         if self.client.user in message.mentions and isinstance(message.channel, discord.TextChannel):
+            response, thread_id = self.assistant.handle_message(None, message.content)
+            thread = await message.create_thread(name=thread_id)
+            await thread.send(response)
             # Create a unique thread name
-            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-            thread_name = f"GPT Chat - {timestamp}"
-            thread = await message.create_thread(name=thread_name)
-            await thread.send(f"Thread started in response to {message.author.display_name}'s mention.")
+            #timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            #thread_name = f"GPT Chat - {timestamp}"
+            #thread = await message.create_thread(name=thread_name)
+            #await thread.send(f"Thread started in response to {message.author.display_name}'s mention.")
 
         # Respond to messages in threads started by the bot
-        elif isinstance(message.channel, discord.Thread) and message.channel.name.startswith("GPT Chat -"):
-            await message.channel.send(f"Echo: {message.content}")
-
+        elif isinstance(message.channel, discord.Thread) and message.channel.name.startswith("thread_"):
+            response, _ = self.assistant.handle_message(message.channel.name, message.content)
+            await message.channel.send(response)
 
     def run(self):
         """
