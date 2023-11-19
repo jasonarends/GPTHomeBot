@@ -1,5 +1,7 @@
 import discord
 import os
+import datetime
+from icecream import ic
 from dotenv import load_dotenv
 
 class DiscordInterface:
@@ -13,7 +15,16 @@ class DiscordInterface:
         """
         load_dotenv()
         self.token = os.getenv('DISCORD_BOT_TOKEN')
-        self.client = discord.Client()
+
+        # Set up Intents
+        intents = discord.Intents.default()
+        
+        intents.messages = True  # Adjust this based on your needs
+        intents.message_content = True
+        intents.guild_messages = True
+        intents.dm_messages = True
+
+        self.client = discord.Client(intents=intents)
 
     async def on_ready(self):
         """
@@ -28,14 +39,23 @@ class DiscordInterface:
         if message.author == self.client.user:
             return
 
-        # Respond only in threads or start a new thread
-        if message.channel.type == discord.ChannelType.text and not message.is_system():
-            if message.thread:
-                await message.thread.send(f"Echo: {message.content}")
-            else:
-                thread = await message.create_thread(name=f"Thread for {message.author.display_name}")
-                await thread.send(f"Echo: {message.content}")
-        # Here you can integrate with ChatGPT for more complex responses
+        # Debugging: Print the message content
+        ic(message)
+        ic(message.content)
+        ic(message.mentions)
+
+        # Improved mention detection
+        if self.client.user in message.mentions and isinstance(message.channel, discord.TextChannel):
+            # Create a unique thread name
+            timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+            thread_name = f"GPT Chat - {timestamp}"
+            thread = await message.create_thread(name=thread_name)
+            await thread.send(f"Thread started in response to {message.author.display_name}'s mention.")
+
+        # Respond to messages in threads started by the bot
+        elif isinstance(message.channel, discord.Thread) and message.channel.name.startswith("GPT Chat -"):
+            await message.channel.send(f"Echo: {message.content}")
+
 
     def run(self):
         """
