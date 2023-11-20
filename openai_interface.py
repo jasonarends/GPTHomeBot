@@ -30,11 +30,13 @@ class OpenAIAssistant:
             content=content
         )
         
-    async def handle_message(self, thread_id, content):
+    async def handle_message(self, thread_id, user_name, content):
+        # Modified to include user_name
         if not thread_id:
             thread_id = self.create_thread()
-        ic()
-        self.add_message(thread_id, "user", content)
+        # Include user's name or nickname in the content
+        content_with_name = f"{user_name}: {content}"
+        self.add_message(thread_id, "user", content_with_name)
         return await self.run_assistant(thread_id), thread_id
 
     async def run_assistant(self, thread_id):

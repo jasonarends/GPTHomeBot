@@ -26,17 +26,18 @@ class DiscordInterface:
         if message.author == self.client.user:
             return
 
-
+        user_name = message.author.nick or message.author.name  # Get nickname if available, else username
         if self.client.user in message.mentions and isinstance(message.channel, discord.TextChannel):
-            responses, thread_id = await self.assistant.handle_message(None, message.content)
-            thread = await message.create_thread(name=thread_id)
-            for response in responses:
-                await thread.send(response)
-
+            async with message.channel.typing():  # Show typing indicator
+                responses, thread_id = await self.assistant.handle_message(None, user_name, message.content)
+                thread = await message.create_thread(name=thread_id)
+                for response in responses:
+                    await thread.send(response)
         elif isinstance(message.channel, discord.Thread) and message.channel.name.startswith("thread_"):
-            responses, _ = await self.assistant.handle_message(message.channel.name, message.content)
-            for response in responses:
-                await message.channel.send(response)
+            async with message.channel.typing():  # Show typing indicator
+                responses, _ = await self.assistant.handle_message(message.channel.name, user_name, message.content)
+                for response in responses:
+                    await message.channel.send(response)
 
     def run(self):
         self.client.event(self.on_ready)
