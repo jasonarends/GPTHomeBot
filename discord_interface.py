@@ -3,6 +3,7 @@ from openai_interface import OpenAIAssistant
 import os
 from dotenv import load_dotenv
 from icecream import ic
+from utils import DatabaseManager
 
 class DiscordInterface:
     def __init__(self):
@@ -18,16 +19,30 @@ class DiscordInterface:
         intents.dm_messages = True
 
         self.client = discord.Client(intents=intents)
+        self.db_manager = DatabaseManager("discord_users.sqlite3")
 
     async def on_ready(self):
         print(f'{self.client.user} has connected to Discord!')
 
-    async def on_message(self, message):
+    async def on_message(self, message: discord.Message):
         if message.author == self.client.user:
             return
 
-        user_name = message.author.nick or message.author.name  # Get nickname if available, else username
-        if self.client.user in message.mentions and isinstance(message.channel, discord.TextChannel):
+        user_name = message.author.name  # Get nickname if available, else username
+        user_id = str(message.author.id)
+        
+        # For DMs
+        if isinstance(message.channel, discord.DMChannel):
+            thread_id = self.db_manager.get_thread_id(user_id)
+            if not thread_id:
+                responses, thread_id = await self.assistant.handle_message(thread_id, user_name, message.content)
+                self.db_manager.set_thread_id(user_id, thread_id)
+            else:
+                responses, _ = await self.assistant.handle_message(thread_id, user_name, message.content)
+            for response in responses:
+                await message.channel.send(response)
+                
+        elif self.client.user in message.mentions and isinstance(message.channel, discord.TextChannel):
             async with message.channel.typing():  # Show typing indicator
                 responses, thread_id = await self.assistant.handle_message(None, user_name, message.content)
                 thread = await message.create_thread(name=thread_id)
