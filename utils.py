@@ -1,5 +1,42 @@
 import sqlite3
 import os
+from langchain.text_splitter import RecursiveCharacterTextSplitter, MarkdownHeaderTextSplitter, Document
+from icecream import ic
+
+
+class Utils:
+    @staticmethod
+    def split_messages(message, limit=2000, overlap=20, headers_to_split_on=None):
+        if len(message) <= limit:
+            return [message]
+
+        # Initialize markdown header splitter
+        markdown_splitter = MarkdownHeaderTextSplitter(headers_to_split_on=headers_to_split_on or [
+            ("#", "Header 1"),
+            ("##", "Header 2"),
+        ])
+
+        # Split markdown document by headers
+        md_header_splits = markdown_splitter.split_text(message)
+
+        # Initialize recursive character text splitter
+        text_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=limit, 
+            chunk_overlap=overlap
+        )
+
+        # Split each markdown section further if necessary
+        splits = []
+        for section in md_header_splits:
+            # Extract text if section is a Document
+            text_to_split = section.page_content if isinstance(section, Document) else section
+
+            # Ensure text_to_split is a string before splitting
+            if isinstance(text_to_split, str):
+                section_splits = text_splitter.split_text(text_to_split)
+                splits.extend(section_splits)
+
+        return splits
 
 class DatabaseManager:
     def __init__(self, db_file):
